@@ -1,3 +1,5 @@
+import datetime
+
 import numpy as np
 import pandas as pd
 from stockstats import StockDataFrame as Sdf
@@ -154,7 +156,7 @@ class FeatureEngineer:
                 except Exception as e:
                     print(e)
             df = df.merge(indicator_df[['tic','date',indicator]],on=['tic','date'],how='left')
-        df = df.sort_values(by=['date','tic'])
+        df = df.sort_values(by=['date', 'tic'])
         return df
 
     def add_user_defined_feature(self, data):
@@ -165,10 +167,10 @@ class FeatureEngineer:
         """
         df = data.copy()
         df["daily_return"] = df.close.pct_change(1)
-        # df['return_lag_1']=df.close.pct_change(2)
-        # df['return_lag_2']=df.close.pct_change(3)
-        # df['return_lag_3']=df.close.pct_change(4)
-        # df['return_lag_4']=df.close.pct_change(5)
+        df['return_lag_1']=df.close.pct_change(2)
+        df['return_lag_2']=df.close.pct_change(3)
+        df['return_lag_3']=df.close.pct_change(4)
+        df['return_lag_4']=df.close.pct_change(5)
         return df
     
     def add_vix(self, data):
