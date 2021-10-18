@@ -85,7 +85,8 @@ class DRLAgent:
     def train_model(self, model, model_name, model_config,total_episodes=100):
         if model_name not in MODELS:
            raise NotImplementedError("NotImplementedError")
-        ray.init() # Other Ray APIs will not work until `ray.init()` is called.
+        ray.init(ignore_reinit_error=True) # Other Ray APIs will not work until `ray.init()` is called.
+        
         if model_name == 'ppo':
             trainer = model.PPOTrainer(env=self.env, config=model_config)
         elif model_name == 'a2c':
@@ -109,8 +110,7 @@ class DRLAgent:
         return trainer
 
     @staticmethod
-    def DRL_prediction(model, 
-                        model_name,
+    def DRL_prediction(model_name,
                         env, 
                         price_array, 
                         tech_array, 
@@ -120,11 +120,11 @@ class DRLAgent:
            raise NotImplementedError("NotImplementedError")
            
         if model_name == 'a2c':
-            model_config = model.A2C_DEFAULT_CONFIG.copy()
+            model_config = MODELS[model_name].A2C_DEFAULT_CONFIG.copy()
         elif model_name == 'td3':
-            model_config = model.TD3_DEFAULT_CONFIG.copy()
+            model_config = MODELS[model_name].TD3_DEFAULT_CONFIG.copy()
         else:
-            model_config = model.DEFAULT_CONFIG.copy()
+            model_config = MODELS[model_name].DEFAULT_CONFIG.copy()
         model_config['env'] = env
         model_config["log_level"] = "WARN"
         model_config['env_config'] = {'price_array':price_array,
@@ -139,15 +139,15 @@ class DRLAgent:
 
         #ray.init() # Other Ray APIs will not work until `ray.init()` is called.
         if model_name == 'ppo':
-            trainer = model.PPOTrainer(env=env, config=model_config)
+            trainer = MODELS[model_name].PPOTrainer(env=env, config=model_config)
         elif model_name == 'a2c':
-            trainer = model.A2CTrainer(env=env, config=model_config)
+            trainer = MODELS[model_name].A2CTrainer(env=env, config=model_config)
         elif model_name == 'ddpg':
-            trainer = model.DDPGTrainer(env=env, config=model_config)           
+            trainer = MODELS[model_name].DDPGTrainer(env=env, config=model_config)           
         elif model_name == 'td3':
-            trainer = model.TD3Trainer(env=env, config=model_config)
+            trainer = MODELS[model_name].TD3Trainer(env=env, config=model_config)
         elif model_name == 'sac':
-            trainer = model.SACTrainer(env=env, config=model_config)
+            trainer = MODELS[model_name].SACTrainer(env=env, config=model_config)
 
         try:
             trainer.restore(agent_path)

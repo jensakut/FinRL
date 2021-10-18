@@ -64,20 +64,54 @@ class DRLAgent:
 
     Methods
     -------
-        train_PPO()
-            the implementation for PPO algorithm
-        train_A2C()
-            the implementation for A2C algorithm
-        train_DDPG()
-            the implementation for DDPG algorithm
-        train_TD3()
-            the implementation for TD3 algorithm
-        train_SAC()
-            the implementation for SAC algorithm
+        get_model()
+            setup DRL algorithms
+        train_model()
+            train DRL algorithms in a train dataset 
+            and output the trained model
         DRL_prediction()
             make a prediction in a test dataset and get results
     """
 
+    def __init__(self, env):
+        self.env = env
+
+    def get_model(
+        self,
+        model_name,
+        policy="MlpPolicy",
+        policy_kwargs=None,
+        model_kwargs=None,
+        verbose=1,
+        seed=None
+    ):
+        if model_name not in MODELS:
+            raise NotImplementedError("NotImplementedError")
+
+        if model_kwargs is None:
+            model_kwargs = MODEL_KWARGS[model_name]
+
+        if "action_noise" in model_kwargs:
+            n_actions = self.env.action_space.shape[-1]
+            model_kwargs["action_noise"] = NOISE[model_kwargs["action_noise"]](
+                mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions)
+            )
+        print(model_kwargs)
+        model = MODELS[model_name](
+            policy=policy,
+            env=self.env,
+            tensorboard_log=f"{config.TENSORBOARD_LOG_DIR}/{model_name}",
+            verbose=verbose,
+            policy_kwargs=policy_kwargs,
+            seed=seed,
+            **model_kwargs,
+        )
+        return model
+
+    def train_model(self, model, tb_log_name, total_timesteps=5000):
+        model = model.learn(total_timesteps=total_timesteps, tb_log_name=tb_log_name, callback=TensorboardCallback())
+        return model
+    
     @staticmethod
     def DRL_prediction(model, environment):
         test_env, test_obs = environment.get_sb_env()
@@ -98,43 +132,37 @@ class DRLAgent:
                 break
         return account_memory[0], actions_memory[0]
 
-    def __init__(self, env):
-        self.env = env
-
-    def get_model(
-        self,
-        model_name,
-        policy="MlpPolicy",
-        policy_kwargs=None,
-        model_kwargs=None,
-        verbose=1,
-    ):
+    @staticmethod
+    def DRL_prediction_load_from_file(model_name, environment, cwd):
         if model_name not in MODELS:
             raise NotImplementedError("NotImplementedError")
-
-        if model_kwargs is None:
-            model_kwargs = MODEL_KWARGS[model_name]
-
-        if "action_noise" in model_kwargs:
-            n_actions = self.env.action_space.shape[-1]
-            model_kwargs["action_noise"] = NOISE[model_kwargs["action_noise"]](
-                mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions)
-            )
-        print(model_kwargs)
-        model = MODELS[model_name](
-            policy=policy,
-            env=self.env,
-            tensorboard_log=f"{config.TENSORBOARD_LOG_DIR}/{model_name}",
-            verbose=verbose,
-            policy_kwargs=policy_kwargs,
-            **model_kwargs,
-        )
-        return model
-
-    def train_model(self, model, tb_log_name, total_timesteps=5000):
-        model = model.learn(total_timesteps=total_timesteps, tb_log_name=tb_log_name, callback=TensorboardCallback())
-        return model
-
+        try:
+            #load agent
+            model = MODELS[model_name].load(cwd)
+            print("Successfully load model", cwd)
+        except:
+            raise ValueError('Fail to load agent!')
+        
+        #test on the testing env
+        state = environment.reset()
+        episode_returns = list()  # the cumulative_return / initial_account
+        episode_total_assets = list()
+        episode_total_assets.append(environment.initial_total_asset)
+        done = False
+        while not done:
+            action = model.predict(state)[0]
+            state, reward, done, _ = environment.step(action)
+    
+            total_asset = environment.amount + (environment.price_ary[environment.day] * environment.stocks).sum()
+            episode_total_assets.append(total_asset)
+            episode_return = total_asset / environment.initial_total_asset
+            episode_returns.append(episode_return)
+        
+        print('episode_return', episode_return)
+        print('Test Finished!')   
+        return episode_total_assets
+    
+    
 class DRLEnsembleAgent:
     @staticmethod
     def get_model(model_name,
@@ -142,6 +170,7 @@ class DRLEnsembleAgent:
                     policy="MlpPolicy",
                     policy_kwargs=None,
                     model_kwargs=None,
+                    seed = None,
                     verbose=1):
 
         if model_name not in MODELS:
@@ -164,6 +193,7 @@ class DRLEnsembleAgent:
             tensorboard_log=f"{config.TENSORBOARD_LOG_DIR}/{model_name}",
             verbose=verbose,
             policy_kwargs=policy_kwargs,
+            seed = seed,
             **temp_model_kwargs,
         )
         return model

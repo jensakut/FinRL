@@ -26,16 +26,11 @@ class DRLAgent:
             user-defined class
     Methods
     -------
-        train_PPO()
-            the implementation for PPO algorithm
-        train_A2C()
-            the implementation for A2C algorithm
-        train_DDPG()
-            the implementation for DDPG algorithm
-        train_TD3()
-            the implementation for TD3 algorithm
-        train_SAC()
-            the implementation for SAC algorithm
+        get_model()
+            setup DRL algorithms
+        train_model()
+            train DRL algorithms in a train dataset 
+            and output the trained model
         DRL_prediction()
             make a prediction in a test dataset and get results
     """
@@ -88,7 +83,10 @@ class DRLAgent:
         if model_name not in MODELS:
             raise NotImplementedError("NotImplementedError")
         model = MODELS[model_name]
-        args = Arguments(agent=model(), env=environment, if_on_policy=True)
+        args = Arguments(if_on_policy=True)
+        args.agent = model()
+        args.env = environment
+        args.agent.if_use_cri_target = True
         
         #load agent
         try:
@@ -109,7 +107,9 @@ class DRLAgent:
         #test on the testing env
         _torch = torch
         state = environment.reset()
+        episode_returns = list()  # the cumulative_return / initial_account
         episode_total_assets = list()
+        episode_total_assets.append(environment.initial_total_asset)
         with _torch.no_grad():
             for i in range(environment.max_step):
                 s_tensor = _torch.as_tensor((state,), device=device)
@@ -119,8 +119,11 @@ class DRLAgent:
 
                 total_asset = environment.amount + (environment.price_ary[environment.day] * environment.stocks).sum()
                 episode_total_assets.append(total_asset)
+                episode_return = total_asset / environment.initial_total_asset
+                episode_returns.append(episode_return)
                 if done:
                     break
         print('Test Finished!')
         #return episode total_assets on testing data
+        print('episode_return', episode_return)
         return episode_total_assets
