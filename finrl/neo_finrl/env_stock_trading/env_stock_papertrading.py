@@ -20,21 +20,11 @@ class AlpacaPaperTrading():
         #load agent
         self.drl_lib = drl_lib
         if agent =='ppo':
-            
-            if drl_lib == 'elegantrl':
+            if drl_lib == 'elegantrl':              
               from elegantrl.agent import AgentPPO
-              args = Arguments(if_on_policy=True)
-              args.agent = AgentPPO()
-              args.agent.if_use_cri_target = True
-            
               #load agent
               try:
-                  state_dim = state_dim
-                  action_dim = action_dim
-          
-                  agent = args.agent
-                  net_dim = net_dim
-          
+                  agent = AgentPPO()
                   agent.init(net_dim, state_dim, action_dim)
                   agent.save_or_load_agent(cwd=cwd, if_save=False)
                   self.act = agent.act
